@@ -1,6 +1,7 @@
 var d3SkyLine = (function(d3){
     function setOptions(options){
         var margin = setMargin(options.margin || {});
+        
 //        var dates = setDates(options.dates || {});
         return {
             width : (options.width || 900) - margin.left - margin.right,
@@ -9,6 +10,9 @@ var d3SkyLine = (function(d3){
             dates : setDates(options.dates || {}),
             barMargin : setMargin(options.barMargin || {}),
             boxesStacked : options.boxesStacked || null,
+            boxColour: options.boxColour || "steelblue",
+            boxTextColour: options.boxTextColour || "white",
+            boxFont: options.boxFont || "10px sans-serif",
             boxWidth : options.boxWidth || null,
             format : options.format || function(data){ return data;},
             key: options.key || '#key',
@@ -34,7 +38,6 @@ var d3SkyLine = (function(d3){
     
     return function(dom, data, options){
         var settings = setOptions(options);
-        
         var data = data.map(function(current){return settings.format(current)});
         
         var xAxisStart = settings.dates.start || d3.min(data, function(d){ return d.date;});
@@ -44,12 +47,13 @@ var d3SkyLine = (function(d3){
         
         var svg = d3.select(dom)
                 .append("svg")
+                .attr("id", "skylineSVG")
                 .attr("width", settings.width + settings.margin.left + settings.margin.right)
                 .attr("height", settings.height + settings.margin.top + settings.margin.bottom)
                 .attr("class","chart")
                 .append("g")
                 .attr("transform","translate(" + settings.margin.left + "," + settings.margin.top + ")");
-
+        
         var color = d3.scaleLinear()
                 .domain([30*24*60, 0 , -1*30*24*60])
                 .range(["#FF0000", "#FFFF00","#00FF00"]);
@@ -66,6 +70,7 @@ var d3SkyLine = (function(d3){
         
         var bins = histogram(data);
 
+        
         var y = d3.scaleLinear()
                 .range([settings.height, 0])
                 .domain([0, settings.boxesStacked || d3.max(bins, function(d){ return d.length;})]);
@@ -92,10 +97,11 @@ var d3SkyLine = (function(d3){
                 .attr("x",1)
                 .attr("y", function(d, i) { return settings.height - y(i); })
                 .attr("stroke","black")
+                .attr("fill",settings.boxColour)
                 .attr("width", function(d) {return x(d.x1) - x(d.x0); })
                 .attr("height", function(d) { return settings.height - y(1); })
                 .on("mouseover", handleMouseOver);
-        
+                
         box     .append("circle")
                 .attr("r",5)
                 .attr("cx",15)
@@ -114,6 +120,8 @@ var d3SkyLine = (function(d3){
                 .attr("y", function(d, i) { return settings.height - y(i) + (settings.height - y(1))/2; })
                 .attr("x", function(d) { return (x(d.x1) - x(d.x0)) / 2; })
                 .attr("text-anchor", "middle")
+                .attr("fill",settings.boxTextColour)
+                .attr("font",settings.boxFont)
                 .text(function(d) { return d.name; });
         
         
@@ -126,5 +134,25 @@ var d3SkyLine = (function(d3){
             current.x0 = original.x0;
             return current;
         }
+        
+        function toURI(){
+            return "data:image/svg+xml;charset=utf-8,"+(new XMLSerializer).serializeToString(document.querySelector(dom + ' > #skylineSVG'));
+        }
+        
+        function toCanvas(){
+            var canvas = document.createElement("canvas");
+            var context = canvas.getContext('2d');
+            var img = new Image();
+                img.onload = function(){
+                    context.drawImage(img, 0 ,0);
+                };
+            img.src = toURI();
+            return canvas;
+        }
+        
+        return {
+            toCanvas:toCanvas,
+            toUri:toURI
+        };
     };
 }(window.d3));
